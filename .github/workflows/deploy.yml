@@ -1,0 +1,71 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches:
+      - main
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+    environment: aws
+
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.GITHUBACTIONSTERRAFORMROLE }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Set up JDK 24
+        uses: actions/setup-java@v4
+        with:
+          java-version: 24
+          distribution: 'temurin'
+
+      - name: Build com Maven
+        run: mvn clean package -DskipTests
+
+      - name: Login no Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build e Push da Imagem Docker
+        run: |
+          IMAGE_URI=${{ vars.ECR_REPO }}:latest
+          
+          echo "Buildando imagem: $IMAGE_URI"
+          docker build -t $IMAGE_URI .
+          
+          echo "Fazendo push da imagem para o ECR..."
+          docker push $IMAGE_URI
+          
+          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
+
+      - name: Instalar Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+
+      - name: Init Terraform
+        working-directory: terraform
+        run: terraform init
+
+      - name: Apply Terraform com nova imagem
+        working-directory: terraform
+        env:
+          TF_VAR_aws_region: ${{ vars.AWS_REGION }}
+          TF_VAR_image_uri: ${{ env.IMAGE_URI }}
+          TF_VAR_security_group_id: ${{ vars.SECURITY_GROUP_ID }}
+          TF_VAR_subnets: ${{ vars.SUBNETS }}
+          TF_VAR_execution_role_arn: ${{ vars.EXECUTION_ROLE_ARN }}
+          TF_VAR_task_role_arn: ${{ vars.TASK_ROLE_ARN }}
+          TF_VAR_open_api_key: ${{ vars.OPEN_API_KEY }}
+          TF_VAR_rag_path: ${{ vars.RAG_PATH }}
+        run: terraform apply -auto-approve
