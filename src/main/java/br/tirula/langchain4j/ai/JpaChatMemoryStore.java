@@ -1,5 +1,7 @@
-package br.tirula.langchain4j.chatstore;
+package br.tirula.langchain4j.ai;
 
+import br.tirula.langchain4j.jpa.entity.MessageEntity;
+import br.tirula.langchain4j.jpa.repository.MessageRepository;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.store.memory.chat.ChatMemoryStore;
 import lombok.RequiredArgsConstructor;

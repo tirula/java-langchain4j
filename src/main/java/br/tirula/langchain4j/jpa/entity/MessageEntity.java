@@ -1,6 +1,5 @@
-package br.tirula.langchain4j.chatstore;
+package br.tirula.langchain4j.jpa.entity;
 
-import dev.langchain4j.data.message.ChatMessage;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
